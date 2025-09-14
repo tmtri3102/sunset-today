@@ -431,17 +431,27 @@
                 </div>
                 <div class="mt-8 text-gray-700">
                     <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-2">Cách tính điểm</h3>
-                    <ul class="text-xs sm:text-sm mt-4 space-y-2">
-                        <li>Tổng 100 điểm dựa trên 5 yếu tố thời tiết.</li>
-                        <li>Mỗi yếu tố có điểm tối đa 20 khi giá trị nằm trong phạm vi lý tưởng (PVLT). Điểm này sẽ giảm nếu giá trị nằm ngoài phạm vi đó.</li>
-                        <li>Điểm yếu tố có màu <italic class="text-green-500">xanh lá nếu giá trị trong PVLT</italic>, <italic class="text-yellow-600">vàng nếu gần PVLT</italic> và <italic class="text-red-500">đỏ nếu xa PVLT</italic>.</li>
-                        <li>Tổng điểm có màu <italic class="text-emerald-600">lá đậm nếu >=95</italic>, <italic class="text-green-500">xanh lá nếu >=85</italic>, <italic class="text-blue-500">xanh dương nếu >=70</italic> và <italic class="text-gray-500">xám nếu <70</italic>.</li>
-                    </ul>
+                   <ul class="text-xs sm:text-sm mt-4 space-y-2">
+  <li>Tổng điểm: 100, dựa trên 5 yếu tố thời tiết.</li>
+  <li>Mỗi yếu tố tối đa 20 điểm nếu trong PVLT, lệch càng nhiều điểm càng giảm.</li>
+  <li>Màu yếu tố: 
+    <span class="text-green-500">xanh lá (trong PVLT)</span>, 
+    <span class="text-yellow-600">vàng (gần PVLT)</span>, 
+    <span class="text-red-500">đỏ (xa PVLT)</span>.
+  </li>
+  <li>Màu tổng điểm: 
+    <span class="text-emerald-600">lá đậm ≥95 (Xuất sắc)</span>, 
+    <span class="text-green-500">xanh lá ≥85 (Rất cao)</span>, 
+    <span class="text-blue-500">xanh dương ≥70 (Cao)</span>, 
+    <span class="text-gray-500">xám &lt;70 (Không cao)</span>.
+  </li>
+</ul>
+
                     <p class="font-semibold mt-4">Ví dụ: Độ che phủ mây = 93% và có điểm 13.4</p>
                     <ol class="list-decimal list-inside text-xs sm:text-sm mt-2 space-y-2">
                         <li>Tính độ lệch (Deviation): bằng giá trị 93% chênh lệch với điểm gần nhất của PVLT (40-60%): <strong>93% - 60% = 33%</strong></li>
                         <li>Tính điểm phạt (Penalty): bằng <strong>độ lệch x (20 / 100) = 33 x 0.2 = 6.6</strong>. <br/>Về bản chất ta đang "map" độ lệch (33%) của giá trị với độ lệch của thang điểm 0-20 (6.6)</li>
-                        <li>Điểm cuối cùng: bằng <strong>20 - điểm phạt = 20 - 6.6 = 13.4 pt </strong></li>
+                        <li>Điểm cuối cùng: bằng <strong>20 - điểm phạt = 20 - 6.6 = 13.4</strong></li>
                     </ol>
                 </div>
             `;
