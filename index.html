@@ -433,7 +433,7 @@
                     <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-2">Cách tính điểm</h3>
                    <ul class="text-xs sm:text-sm mt-4 space-y-2">
   <li>Tổng điểm: 100, dựa trên 5 yếu tố thời tiết.</li>
-  <li>Mỗi yếu tố tối đa 20 điểm nếu trong PVLT, lệch càng nhiều điểm càng giảm.</li>
+  <li>Mỗi yếu tố tối đa 20 điểm nếu trong phạm vi lý tưởng (PVLT), lệch càng nhiều điểm càng giảm.</li>
   <li>Màu yếu tố: 
     <span class="text-green-500">xanh lá (trong PVLT)</span>, 
     <span class="text-yellow-600">vàng (gần PVLT)</span>, 
@@ -483,9 +483,9 @@
           );
           const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-          let str = `còn ${hours}h ${minutes}m ${seconds}s nữa là hoàng hôn`;
+          let str = `còn <span class="font-bold text-orange-600">${hours}h ${minutes}m ${seconds}s</span> nữa là hoàng hôn`;
           if (days > 0) str = `${days}d ` + str;
-          countdownDisplay.textContent = str;
+          countdownDisplay.innerHTML = str;
         }, 1000);
       }
 
