@@ -150,30 +150,41 @@
           const weatherData = await getWeatherData(latitude, longitude);
 
           const now = new Date();
-          let sunsetTime, sunsetHourIndex;
+          let sunsetTime;
           const todaySunset = new Date(weatherData.daily.sunset[0]);
           const tomorrowSunset = new Date(weatherData.daily.sunset[1]);
 
           if (now > todaySunset) {
             sunsetTime = tomorrowSunset;
-            const tomorrowTimestamp = sunsetTime.getTime();
-            sunsetHourIndex = weatherData.hourly.time.findIndex(
-              (time) => new Date(time).getTime() === tomorrowTimestamp
-            );
           } else {
             sunsetTime = todaySunset;
-            const todayTimestamp = sunsetTime.getTime();
-            sunsetHourIndex = weatherData.hourly.time.findIndex(
-              (time) => new Date(time).getTime() === todayTimestamp
-            );
           }
 
-          if (sunsetHourIndex === -1) {
-            const nowHour = Math.floor(now.getTime() / 3600000) * 3600000;
-            const nearestHour = weatherData.hourly.time.find(
-              (time) => new Date(time).getTime() >= nowHour
-            );
-            sunsetHourIndex = weatherData.hourly.time.indexOf(nearestHour);
+          // Find the hourly index closest to the actual sunset time
+          let sunsetHourIndex = -1;
+          const sunsetTimestamp = sunsetTime.getTime();
+          for (let i = 0; i < weatherData.hourly.time.length; i++) {
+            const hourlyTimestamp = new Date(weatherData.hourly.time[i]).getTime();
+            if (hourlyTimestamp >= sunsetTimestamp) {
+              // If the current hourly timestamp is greater than or equal to sunset,
+              // we take the previous hour if it's closer, otherwise this hour.
+              if (i > 0) {
+                const prevHourlyTimestamp = new Date(weatherData.hourly.time[i - 1]).getTime();
+                if (Math.abs(sunsetTimestamp - prevHourlyTimestamp) < Math.abs(sunsetTimestamp - hourlyTimestamp)) {
+                  sunsetHourIndex = i - 1;
+                } else {
+                  sunsetHourIndex = i;
+                }
+              } else {
+                sunsetHourIndex = i;
+              }
+              break;
+            }
+          }
+
+          // Fallback if sunset time is after the last hourly data point (unlikely with forecast_days=2)
+          if (sunsetHourIndex === -1 && weatherData.hourly.time.length > 0) {
+            sunsetHourIndex = weatherData.hourly.time.length - 1;
           }
 
           startCountdown(sunsetTime);
@@ -370,7 +381,7 @@
                         <p class="text-sm text-gray-500 italic">Lý tưởng = 40-60%</p>
                         <p class="mt-2 sm:text-sm  font-bold ${getScoreColor(
                           cloudScore
-                        )}">${cloudScore.toFixed(1)}</p>
+                        )}">${cloudScore.toFixed(0)}</p>
                     </div>
 
                     <!-- Humidity -->
