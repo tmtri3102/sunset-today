@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/check_sunsets",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

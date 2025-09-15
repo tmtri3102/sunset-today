@@ -16,12 +16,6 @@
       rel="stylesheet"
     />
     <style>
-      #main-container {
-        caret-color: transparent;
-      }
-      #city-input {
-        caret-color: initial;
-      }
       body {
         font-family: "Merriweather", sans-serif;
       }
@@ -33,10 +27,7 @@
       }
     </style>
   </head>
-  <body
-    class="flex items-start min-h-screen p-4 md:p-10 md:justify-center"
-    contenteditable="false"
-  >
+  <body class="flex items-start min-h-screen p-4 md:p-10 md:justify-center">
     <div
       id="main-container"
       class="w-full max-w-lg mx-auto text-left rounded-2xl p-4 md:p-8 flex flex-col"
@@ -119,6 +110,11 @@
       const formulaBreakdown = document.getElementById("formula-breakdown");
       const scoreDot = document.getElementById("score-dot");
 
+      const subscribeBtn = document.getElementById("subscribe-btn");
+      const subscribeCityInput = document.getElementById("subscribe-city");
+      const subscribeEmailInput = document.getElementById("subscribe-email");
+      const subscribeMessage = document.getElementById("subscribe-message");
+
       let countdownInterval;
 
       getSunsetBtn.addEventListener("click", findSunset);
@@ -164,13 +160,20 @@
           let sunsetHourIndex = -1;
           const sunsetTimestamp = sunsetTime.getTime();
           for (let i = 0; i < weatherData.hourly.time.length; i++) {
-            const hourlyTimestamp = new Date(weatherData.hourly.time[i]).getTime();
+            const hourlyTimestamp = new Date(
+              weatherData.hourly.time[i]
+            ).getTime();
             if (hourlyTimestamp >= sunsetTimestamp) {
               // If the current hourly timestamp is greater than or equal to sunset,
               // we take the previous hour if it's closer, otherwise this hour.
               if (i > 0) {
-                const prevHourlyTimestamp = new Date(weatherData.hourly.time[i - 1]).getTime();
-                if (Math.abs(sunsetTimestamp - prevHourlyTimestamp) < Math.abs(sunsetTimestamp - hourlyTimestamp)) {
+                const prevHourlyTimestamp = new Date(
+                  weatherData.hourly.time[i - 1]
+                ).getTime();
+                if (
+                  Math.abs(sunsetTimestamp - prevHourlyTimestamp) <
+                  Math.abs(sunsetTimestamp - hourlyTimestamp)
+                ) {
                   sunsetHourIndex = i - 1;
                 } else {
                   sunsetHourIndex = i;
@@ -465,6 +468,17 @@
                         <li>Điểm cuối cùng: bằng <strong>20 - điểm phạt = 20 - 6.6 = 13.4</strong></li>
                     </ol>
                 </div>
+                <div id="subscribe-container" class="mt-8 border-t pt-6">
+                  <h3 class="text-lg font-bold text-gray-700 mb-2">Nhận thông báo khi sắp có hoàng hôn đẹp</h3>
+                  <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="subscribe-city" placeholder="Tên thành phố" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="email" id="subscribe-email" placeholder="Email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  </div>
+                  <button id="subscribe-btn" class="mt-3 w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+                    Subscribe
+                  </button>
+                  <p id="subscribe-message" class="text-sm mt-2 min-h-[1.2em]"></p>
+                </div>
             `;
       }
 
@@ -499,6 +513,42 @@
           countdownDisplay.innerHTML = str;
         }, 1000);
       }
+
+      subscribeBtn.addEventListener("click", async () => {
+        const city = subscribeCityInput.value.trim();
+        const email = subscribeEmailInput.value.trim();
+
+        if (!city || !email) {
+          subscribeMessage.textContent = "Please enter both city and email.";
+          subscribeMessage.style.color = "red";
+          return;
+        }
+
+        subscribeMessage.textContent = "Subscribing...";
+        subscribeMessage.style.color = "gray";
+
+        try {
+          const response = await fetch("/api/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ city, email }),
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            subscribeMessage.textContent = result.message;
+            subscribeMessage.style.color = "green";
+            subscribeCityInput.value = "";
+            subscribeEmailInput.value = "";
+          } else {
+            throw new Error(result.message);
+          }
+        } catch (error) {
+          subscribeMessage.textContent = `Error: ${error.message}`;
+          subscribeMessage.style.color = "red";
+        }
+      });
 
       /**
        * Resets UI elements for a new search.

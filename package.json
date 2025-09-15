@@ -1,0 +1,24 @@
+{
+  "name": "sunset-rating",
+  "version": "1.0.0",
+  "main": "check_sunsets.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tmtri3102/sunset-today.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tmtri3102/sunset-today/issues"
+  },
+  "homepage": "https://github.com/tmtri3102/sunset-today#readme",
+  "description": "",
+  "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "resend": "^6.0.3"
+  }
+}
