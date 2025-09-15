@@ -18,7 +18,7 @@
   "homepage": "https://github.com/tmtri3102/sunset-today#readme",
   "description": "",
   "dependencies": {
-    "@vercel/kv": "^3.0.0",
-    "resend": "^6.0.3"
+    "@upstash/redis": "^1.35.3",
+    "nodemailer": "^7.0.6"
   }
 }

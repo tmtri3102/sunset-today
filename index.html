@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>A small gift by Tri. Happy Birthday</title>
+    <title>Sunset Quality Predictor</title>
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌅</text></svg>"
@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -22,12 +22,13 @@
       .factor-card {
         padding: 1rem;
         border-radius: 0.5rem;
-        /* border: solid 0.3px lightslategray; */
         background-color: #fafafa;
       }
     </style>
   </head>
-  <body class="flex items-start min-h-screen p-4 md:p-10 md:justify-center">
+  <body
+    class="flex items-start min-h-screen p-4 md:p-10 md:justify-center bg-gray-50"
+  >
     <div
       id="main-container"
       class="w-full max-w-lg mx-auto text-left rounded-2xl p-4 md:p-8 flex flex-col"
@@ -43,7 +44,7 @@
             type="text"
             id="city-input"
             placeholder="Nhập tên thành phố..."
-            class="w-full pl-4 pr-12 py-3 bg-transparent outline-none overflow-hidden"
+            class="w-full pl-4 pr-12 py-3 bg-transparent outline-none"
           />
           <button
             id="get-sunset-btn"
@@ -67,8 +68,7 @@
 
       <div id="results-container">
         <div id="location" class="text-sm text-gray-600 font-medium mb-4"></div>
-
-        <div id="quality-container">
+        <div id="quality-container" style="display: none">
           <div
             id="quality-rating"
             class="text-2xl sm:text-3xl font-extrabold mt-2"
@@ -79,10 +79,7 @@
           ></div>
         </div>
       </div>
-      <div
-        id="countdown-container"
-        class="hidden inline-flex flex-wrap items-center justify-center"
-      >
+      <div id="countdown-container" class="hidden">
         <div id="countdown" class="text-sm"></div>
       </div>
 
@@ -90,12 +87,9 @@
       <div id="formula-breakdown" class="text-left hidden"></div>
     </div>
     <script>
-      // API Keys and URLs
-      // Note: These APIs are free and do not require a key.
       const GEOCodingApi = "https://geocoding-api.open-meteo.com/v1/search";
       const WeatherApi = "https://api.open-meteo.com/v1/forecast";
 
-      // DOM Elements
       const cityInput = document.getElementById("city-input");
       const getSunsetBtn = document.getElementById("get-sunset-btn");
       const countdownDisplay = document.getElementById("countdown");
@@ -108,12 +102,6 @@
         "quality-description"
       );
       const formulaBreakdown = document.getElementById("formula-breakdown");
-      const scoreDot = document.getElementById("score-dot");
-
-      const subscribeBtn = document.getElementById("subscribe-btn");
-      const subscribeCityInput = document.getElementById("subscribe-city");
-      const subscribeEmailInput = document.getElementById("subscribe-email");
-      const subscribeMessage = document.getElementById("subscribe-message");
 
       let countdownInterval;
 
@@ -122,9 +110,6 @@
         if (event.key === "Enter") findSunset();
       });
 
-      /**
-       * Main function to orchestrate fetching and displaying sunset data.
-       */
       async function findSunset() {
         const city = cityInput.value.trim();
         if (!city) {
@@ -150,53 +135,19 @@
           const todaySunset = new Date(weatherData.daily.sunset[0]);
           const tomorrowSunset = new Date(weatherData.daily.sunset[1]);
 
-          if (now > todaySunset) {
-            sunsetTime = tomorrowSunset;
-          } else {
-            sunsetTime = todaySunset;
-          }
+          sunsetTime = now > todaySunset ? tomorrowSunset : todaySunset;
 
-          // Find the hourly index closest to the actual sunset time
-          let sunsetHourIndex = -1;
-          const sunsetTimestamp = sunsetTime.getTime();
-          for (let i = 0; i < weatherData.hourly.time.length; i++) {
-            const hourlyTimestamp = new Date(
-              weatherData.hourly.time[i]
-            ).getTime();
-            if (hourlyTimestamp >= sunsetTimestamp) {
-              // If the current hourly timestamp is greater than or equal to sunset,
-              // we take the previous hour if it's closer, otherwise this hour.
-              if (i > 0) {
-                const prevHourlyTimestamp = new Date(
-                  weatherData.hourly.time[i - 1]
-                ).getTime();
-                if (
-                  Math.abs(sunsetTimestamp - prevHourlyTimestamp) <
-                  Math.abs(sunsetTimestamp - hourlyTimestamp)
-                ) {
-                  sunsetHourIndex = i - 1;
-                } else {
-                  sunsetHourIndex = i;
-                }
-              } else {
-                sunsetHourIndex = i;
-              }
-              break;
-            }
-          }
-
-          // Fallback if sunset time is after the last hourly data point (unlikely with forecast_days=2)
-          if (sunsetHourIndex === -1 && weatherData.hourly.time.length > 0) {
-            sunsetHourIndex = weatherData.hourly.time.length - 1;
-          }
-
+          let sunsetHourIndex = findSunsetHourIndex(
+            sunsetTime,
+            weatherData.hourly.time
+          );
           startCountdown(sunsetTime);
 
           const cloudCover = weatherData.hourly.cloud_cover[sunsetHourIndex];
           const humidity =
             weatherData.hourly.relative_humidity_2m[sunsetHourIndex];
-          const visibility = weatherData.hourly.visibility[sunsetHourIndex]; // in meters
-          const windSpeed = weatherData.hourly.wind_speed_10m[sunsetHourIndex]; // in km/h
+          const visibility = weatherData.hourly.visibility[sunsetHourIndex];
+          const windSpeed = weatherData.hourly.wind_speed_10m[sunsetHourIndex];
           const precipProb =
             weatherData.hourly.precipitation_probability[sunsetHourIndex];
 
@@ -216,76 +167,59 @@
         }
       }
 
-      /**
-       * Fetches geographic coordinates for a given city.
-       */
+      function findSunsetHourIndex(sunsetTime, hourlyTimes) {
+        const sunsetTimestamp = sunsetTime.getTime();
+        for (let i = 0; i < hourlyTimes.length; i++) {
+          const hourlyTimestamp = new Date(hourlyTimes[i]).getTime();
+          if (hourlyTimestamp >= sunsetTimestamp) {
+            if (i > 0) {
+              const prevHourlyTimestamp = new Date(
+                hourlyTimes[i - 1]
+              ).getTime();
+              return Math.abs(sunsetTimestamp - prevHourlyTimestamp) <
+                Math.abs(sunsetTimestamp - hourlyTimestamp)
+                ? i - 1
+                : i;
+            }
+            return i;
+          }
+        }
+        return hourlyTimes.length - 1;
+      }
+
       async function getGeoCoordinates(city) {
         const response = await fetch(
           `${GEOCodingApi}?name=${encodeURIComponent(city)}&count=1`
         );
-        if (!response.ok) {
-          throw new Error(
-            `Không thể lấy dữ liệu vị trí. Máy chủ phản hồi với trạng thái: ${response.status}`
-          );
-        }
+        if (!response.ok) throw new Error(`Lỗi máy chủ: ${response.status}`);
         const data = await response.json();
-        if (!data.results || data.results.length === 0) {
-          throw new Error(
-            `Không tìm thấy "${city}". Vui lòng kiểm tra chính tả.`
-          );
-        }
+        if (!data.results || data.results.length === 0)
+          throw new Error(`Không tìm thấy "${city}". Vui lòng kiểm tra lại.`);
         return data.results[0];
       }
 
-      /**
-       * Fetches all necessary hourly weather data.
-       */
       async function getWeatherData(lat, lon) {
         const apiUrl = `${WeatherApi}?latitude=${lat}&longitude=${lon}&daily=sunset&hourly=cloud_cover,relative_humidity_2m,visibility,wind_speed_10m,precipitation_probability&timezone=auto&forecast_days=2`;
         const response = await fetch(apiUrl);
-        if (!response.ok) {
-          throw new Error(
-            `Không thể lấy dữ liệu thời tiết. Máy chủ phản hồi với trạng thái: ${response.status}`
-          );
-        }
+        if (!response.ok)
+          throw new Error(`Lỗi lấy dữ liệu thời tiết: ${response.status}`);
         return response.json();
       }
 
-      /**
-       * Calculates the score for a single factor based on a target range,
-       * with a maximum possible score of 20 points.
-       * @param {number} value The current value of the factor.
-       * @param {number} targetStart The start of the optimal range.
-       * @param {number} targetEnd The end of the optimal range.
-       * @returns {number} The calculated score (0-20).
-       */
       function calculateScore(value, targetStart, targetEnd) {
         const maxScore = 20;
-        if (value >= targetStart && value <= targetEnd) {
-          return maxScore;
-        }
+        if (value >= targetStart && value <= targetEnd) return maxScore;
         const distance =
           value < targetStart ? targetStart - value : value - targetEnd;
-        const score = maxScore - (distance * maxScore) / 100;
-        return Math.max(0, score);
+        return Math.max(0, maxScore - (distance * maxScore) / 100);
       }
 
-      /**
-       * Determines the color class for a given score.
-       * @param {number} score The score for a single factor.
-       * @returns {string} A string containing a color class (e.g., 'text-green-500').
-       */
       function getScoreColor(score) {
         if (score >= 18) return "text-green-500";
         if (score >= 12) return "text-yellow-500";
         return "text-red-500";
       }
 
-      /**
-       * Gets the color class for the final rating based on the total score.
-       * @param {number} finalScore The total score out of 100.
-       * @returns {string} The Tailwind color class.
-       */
       function getFinalScoreColor(finalScore) {
         if (finalScore >= 95) return "text-emerald-600";
         if (finalScore >= 85) return "text-green-500";
@@ -293,21 +227,6 @@
         return "text-gray-500";
       }
 
-      /**
-       * Gets the background color class for the score dot.
-       * @param {number} finalScore The total score out of 100.
-       * @returns {string} The Tailwind background color class.
-       */
-      function getDotColor(finalScore) {
-        if (finalScore >= 95) return "bg-emerald-600";
-        if (finalScore >= 85) return "bg-green-400";
-        if (finalScore >= 70) return "bg-blue-500";
-        return "bg-gray-300";
-      }
-
-      /**
-       * Calculates and displays the sunset quality score and breakdown.
-       */
       function displaySunsetQuality(
         clouds,
         humidity,
@@ -315,191 +234,98 @@
         wind_kph,
         precipProb
       ) {
-        // Factor 1: Cloud Cover (Ideal: 40-60%)
         const cloudScore = calculateScore(clouds, 40, 60);
-
-        // Factor 2: Humidity (Ideal: 0-40%)
         const humidityScore = calculateScore(humidity, 0, 40);
-
-        // Factor 3: Visibility (Ideal: > 20 km)
-        const vis_km = vis_m / 1000;
-        const visibilityScore = Math.min(20, (vis_km / 20) * 20);
-
-        // Factor 4: Wind Speed (Ideal: 0-10 km/h)
+        const visibilityScore = Math.min(20, (vis_m / 1000 / 20) * 20);
         const windScore = calculateScore(wind_kph, 0, 10);
-
-        // Factor 5: Precipitation Probability (Ideal: 0-5%)
         const precipScore = calculateScore(precipProb, 0, 5);
-
-        const finalScore = Math.max(
-          0,
-          Math.min(
-            100,
-            Math.round(
-              cloudScore +
-                humidityScore +
-                visibilityScore +
-                windScore +
-                precipScore
-            )
-          )
+        const finalScore = Math.round(
+          cloudScore + humidityScore + visibilityScore + windScore + precipScore
         );
 
-        // Get description based on score
         let rating, description;
         if (finalScore >= 95) {
-          rating = `${finalScore}/100`;
           description = "Hoàn hảo! Chắc chắn bạn không thể bỏ lỡ.";
         } else if (finalScore >= 85) {
-          rating = `${finalScore}/100`;
           description = "Rất cao! Có thể có nhiều dải nắng đẹp.";
         } else if (finalScore >= 70) {
-          rating = `${finalScore}/100`;
           description = "Cao. Có thể có vài dải nắng dịu.";
         } else {
-          rating = `${finalScore}/100`;
           description = "Không cao. Khó có hoàng hôn đẹp.";
         }
 
-        // Update UI
         qualityContainer.style.display = "block";
-        qualityContainer.className = "mb-2";
-        qualityRatingDisplay.textContent = rating;
+        qualityRatingDisplay.textContent = `${finalScore}/100`;
         qualityRatingDisplay.className = `text-3xl font-extrabold mt-2 ${getFinalScoreColor(
           finalScore
         )}`;
         qualityDescriptionDisplay.textContent = description;
 
-        // Generate the new, simplified breakdown HTML
         formulaBreakdown.style.display = "block";
         formulaBreakdown.innerHTML = `
-                <div class="grid grid-cols-2 sm:gap-4 gap-2 ">
-                    <!-- Clouds -->
-                    <div class="factor-card">
-                        <div class="flex items-center gap-2">
-<span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg></span>
-                            <h4 class="text-sm sm:text-base font-semibold">Độ che phủ mây</h4>
-                        </div>
-                        <p class="text-base sm:text-xxl my-2 font-bold text-gray-700">${clouds}%</p>
-                        <p class="text-sm text-gray-500 italic">Lý tưởng = 40-60%</p>
-                        <p class="mt-2 sm:text-sm  font-bold ${getScoreColor(
-                          cloudScore
-                        )}">${cloudScore.toFixed(0)}</p>
-                    </div>
+          <div class="grid grid-cols-2 sm:gap-4 gap-2 mt-4">
+            <div class="factor-card">
+                <h4 class="text-sm font-semibold">Độ che phủ mây</h4>
+                <p class="text-lg font-bold text-gray-700">${clouds}%</p>
+                <p class="mt-1 font-bold ${getScoreColor(
+                  cloudScore
+                )}">${cloudScore.toFixed(0)}/20</p>
+            </div>
+            <div class="factor-card">
+                <h4 class="text-sm font-semibold">Độ ẩm</h4>
+                <p class="text-lg font-bold text-gray-700">${humidity}%</p>
+                <p class="mt-1 font-bold ${getScoreColor(
+                  humidityScore
+                )}">${humidityScore.toFixed(0)}/20</p>
+            </div>
+            <div class="factor-card">
+                <h4 class="text-sm font-semibold">Tầm nhìn</h4>
+                <p class="text-lg font-bold text-gray-700">${(
+                  vis_m / 1000
+                ).toFixed(1)} km</p>
+                <p class="mt-1 font-bold ${getScoreColor(
+                  visibilityScore
+                )}">${visibilityScore.toFixed(0)}/20</p>
+            </div>
+            <div class="factor-card">
+                <h4 class="text-sm font-semibold">Tốc độ gió</h4>
+                <p class="text-lg font-bold text-gray-700">${wind_kph.toFixed(
+                  1
+                )} km/h</p>
+                <p class="mt-1 font-bold ${getScoreColor(
+                  windScore
+                )}">${windScore.toFixed(0)}/20</p>
+            </div>
+          </div>
+          <div id="subscribe-container" class="mt-8 border-t pt-6">
+            <h3 class="text-lg font-bold text-gray-700 mb-2">Nhận thông báo khi sắp có hoàng hôn đẹp</h3>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input type="text" id="subscribe-city" placeholder="Tên thành phố" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <input type="email" id="subscribe-email" placeholder="Email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button id="subscribe-btn" class="mt-3 w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+              Đăng ký
+            </button>
+            <p id="subscribe-message" class="text-sm mt-2 min-h-[1.2em]"></p>
+          </div>`;
 
-                    <!-- Humidity -->
-                    <div class="factor-card">
-                        <div class="flex items-center gap-2">
-<span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg></span>
-                            <h4 class="text-sm sm:text-base font-semibold">Độ ẩm</h4>
-                        </div>
-                        <p class="text-base sm:text-xxl my-2 font-bold text-gray-700">${humidity}%</p>
-                        <p class="text-sm text-gray-500 italic">Lý tưởng = <40%</p>
-                        <p class="mt-2 sm:text-sm  font-bold ${getScoreColor(
-                          humidityScore
-                        )}">${humidityScore.toFixed(1)}</p>
-                    </div>
-                    
-                    <!-- Visibility -->
-                    <div class="factor-card">
-                        <div class="flex items-center gap-2">
-<span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
-                            <h4 class="text-sm sm:text-base font-semibold">Tầm nhìn</h4>
-                        </div>
-                        <p class="text-base sm:text-xxl my-2 font-bold text-gray-700">${vis_km.toFixed(
-                          1
-                        )} km</p>
-                        <p class="text-sm text-gray-500 italic">Lý tưởng = >20 km</p>
-                        <p class="mt-2 sm:text-sm  font-bold ${getScoreColor(
-                          visibilityScore
-                        )}">${visibilityScore.toFixed(1)}</p>
-                    </div>
-
-                    <!-- Wind Speed -->
-                    <div class="factor-card">
-                        <div class="flex items-center gap-2">
-<span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path></svg></span>
-                            <h4 class="text-sm sm:text-base font-semibold">Tốc độ gió</h4>
-                        </div>
-                        <p class="text-base sm:text-xxl my-2 font-bold text-gray-700">${wind_kph.toFixed(
-                          1
-                        )} km/h</p>
-                        <p class="text-sm text-gray-500 italic">Lý tưởng = <10 km/h</p>
-                        <p class="mt-2 sm:text-sm  font-bold ${getScoreColor(
-                          windScore
-                        )}">${windScore.toFixed(1)}</p>
-                    </div>
-
-                    <!-- Precipitation -->
-                    <div class="factor-card">
-                        <div class="flex items-center gap-2">
-<span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="16" y1="13" x2="16" y2="21"></line><line x1="8" y1="13" x2="8" y2="21"></line><line x1="12" y1="15" x2="12" y2="23"></line><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path></svg></span>
-                            <h4 class="text-sm sm:text-base font-semibold">Xác suất mưa</h4>
-                        </div>
-                        <p class="text-base sm:text-xxl my-2 font-bold text-gray-700">${precipProb}%</p>
-                        <p class="text-sm text-gray-500 italic">Lý tưởng = <5%</p>
-                        <p class="mt-2 sm:text-sm  font-bold ${getScoreColor(
-                          precipScore
-                        )}">${precipScore.toFixed(1)}</p>
-                    </div>
-                </div>
-                <div class="mt-8 text-gray-700">
-                    <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-2">Cách tính điểm</h3>
-                   <ul class="text-xs sm:text-sm mt-4 space-y-2">
-  <li>Tổng điểm: 100, dựa trên 5 yếu tố thời tiết.</li>
-  <li>Mỗi yếu tố tối đa 20 điểm nếu trong phạm vi lý tưởng (PVLT), lệch càng nhiều điểm càng giảm.</li>
-  <li>Màu yếu tố: 
-    <span class="text-green-500">xanh lá (trong PVLT)</span>, 
-    <span class="text-yellow-600">vàng (gần PVLT)</span>, 
-    <span class="text-red-500">đỏ (xa PVLT)</span>.
-  </li>
-  <li>Màu tổng điểm: 
-    <span class="text-emerald-600">lá đậm ≥95 (Xuất sắc)</span>, 
-    <span class="text-green-500">xanh lá ≥85 (Rất cao)</span>, 
-    <span class="text-blue-500">xanh dương ≥70 (Cao)</span>, 
-    <span class="text-gray-500">xám &lt;70 (Không cao)</span>.
-  </li>
-</ul>
-
-                    <p class="font-semibold mt-4">Ví dụ: Độ che phủ mây = 93% và có điểm 13.4</p>
-                    <ol class="list-decimal list-inside text-xs sm:text-sm mt-2 space-y-2">
-                        <li>Tính độ lệch (Deviation): bằng giá trị 93% chênh lệch với điểm gần nhất của PVLT (40-60%): <strong>93% - 60% = 33%</strong></li>
-                        <li>Tính điểm phạt (Penalty): bằng <strong>độ lệch x (20 / 100) = 33 x 0.2 = 6.6</strong>. <br/>Về bản chất ta đang "map" độ lệch (33%) của giá trị với độ lệch của thang điểm 0-20 (6.6)</li>
-                        <li>Điểm cuối cùng: bằng <strong>20 - điểm phạt = 20 - 6.6 = 13.4</strong></li>
-                    </ol>
-                </div>
-                <div id="subscribe-container" class="mt-8 border-t pt-6">
-                  <h3 class="text-lg font-bold text-gray-700 mb-2">Nhận thông báo khi sắp có hoàng hôn đẹp</h3>
-                  <div class="flex flex-col sm:flex-row gap-2">
-                    <input type="text" id="subscribe-city" placeholder="Tên thành phố" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <input type="email" id="subscribe-email" placeholder="Email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  </div>
-                  <button id="subscribe-btn" class="mt-3 w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
-                    Subscribe
-                  </button>
-                  <p id="subscribe-message" class="text-sm mt-2 min-h-[1.2em]"></p>
-                </div>
-            `;
+        // Re-bind the event listener every time new HTML is created
+        document
+          .getElementById("subscribe-btn")
+          .addEventListener("click", handleSubscription);
       }
 
-      /**
-       * Starts the countdown timer.
-       */
       function startCountdown(targetDate) {
         countdownContainer.style.display = "block";
         if (countdownInterval) clearInterval(countdownInterval);
 
-        countdownInterval = setInterval(() => {
-          const now = new Date().getTime();
-          const distance = targetDate - now;
-
+        const update = () => {
+          const distance = targetDate - new Date();
           if (distance < 0) {
             clearInterval(countdownInterval);
             countdownDisplay.textContent = "Hoàng hôn đã qua rồi nha.";
             return;
           }
-
-          const days = Math.floor(distance / (1000 * 60 * 60 * 24));
           const hours = Math.floor(
             (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
           );
@@ -507,24 +333,27 @@
             (distance % (1000 * 60 * 60)) / (1000 * 60)
           );
           const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-          let str = `còn <span class="font-bold text-orange-600">${hours}h ${minutes}m ${seconds}s</span> nữa là hoàng hôn`;
-          if (days > 0) str = `${days}d ` + str;
-          countdownDisplay.innerHTML = str;
-        }, 1000);
+          countdownDisplay.innerHTML = `còn <span class="font-bold text-orange-600">${hours}h ${minutes}m ${seconds}s</span> nữa là hoàng hôn`;
+        };
+        update();
+        countdownInterval = setInterval(update, 1000);
       }
 
-      subscribeBtn.addEventListener("click", async () => {
+      async function handleSubscription() {
+        const subscribeCityInput = document.getElementById("subscribe-city");
+        const subscribeEmailInput = document.getElementById("subscribe-email");
+        const subscribeMessage = document.getElementById("subscribe-message");
+
         const city = subscribeCityInput.value.trim();
         const email = subscribeEmailInput.value.trim();
 
         if (!city || !email) {
-          subscribeMessage.textContent = "Please enter both city and email.";
+          subscribeMessage.textContent = "Vui lòng nhập cả thành phố và email.";
           subscribeMessage.style.color = "red";
           return;
         }
 
-        subscribeMessage.textContent = "Subscribing...";
+        subscribeMessage.textContent = "Đang đăng ký...";
         subscribeMessage.style.color = "gray";
 
         try {
@@ -533,39 +362,26 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ city, email }),
           });
-
           const result = await response.json();
+          if (!response.ok) throw new Error(result.message);
 
-          if (response.ok) {
-            subscribeMessage.textContent = result.message;
-            subscribeMessage.style.color = "green";
-            subscribeCityInput.value = "";
-            subscribeEmailInput.value = "";
-          } else {
-            throw new Error(result.message);
-          }
+          subscribeMessage.textContent = result.message;
+          subscribeMessage.style.color = "green";
+          subscribeCityInput.value = "";
+          subscribeEmailInput.value = "";
         } catch (error) {
-          subscribeMessage.textContent = `Error: ${error.message}`;
+          subscribeMessage.textContent = `Lỗi: ${error.message}`;
           subscribeMessage.style.color = "red";
         }
-      });
+      }
 
-      /**
-       * Resets UI elements for a new search.
-       */
       function resetUI() {
         errorDisplay.textContent = "";
         locationDisplay.textContent = "";
         countdownContainer.style.display = "none";
         qualityContainer.style.display = "none";
         formulaBreakdown.style.display = "none";
-        countdownDisplay.textContent = "";
-        qualityRatingDisplay.textContent = "";
-        qualityDescriptionDisplay.textContent = "";
-        formulaBreakdown.innerHTML = "";
-        if (countdownInterval) {
-          clearInterval(countdownInterval);
-        }
+        if (countdownInterval) clearInterval(countdownInterval);
       }
     </script>
   </body>
