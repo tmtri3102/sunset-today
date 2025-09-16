@@ -1,10 +1,7 @@
 import { Redis } from "@upstash/redis";
 
 // Connects to Upstash using the environment variables from the Vercel integration
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-});
+const redis = Redis.fromEnv();
 
 export default async function handler(request, response) {
   if (request.method !== "POST") {
