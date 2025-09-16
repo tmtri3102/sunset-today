@@ -56,7 +56,7 @@ export default async function handler(request, response) {
         `Checked push subscriber for ${subData.city}. Score: ${score}`
       );
 
-      if (score >= 80) {
+      if (score >= 1) {
         const sunsetTime = new Date(weatherData.daily.sunset[0]);
         const now = new Date();
         const minutesToSunset =
