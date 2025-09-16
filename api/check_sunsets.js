@@ -48,7 +48,8 @@ export default async function handler(request, response) {
     for (const subData of subscribers) {
       if (!subData) continue;
 
-      const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${subData.latitude}&longitude=${subData.longitude}&current=cloud_cover,relative_humidity_2m,visibility,wind_speed_10m,precipitation_probability&timezone=${subData.timezone}`;
+      // CORRECTED LINE
+      const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${subData.latitude}&longitude=${subData.longitude}&current=cloud_cover,relative_humidity_2m,visibility,wind_speed_10m,precipitation_probability&daily=sunset&timezone=${subData.timezone}`;
       const weatherResponse = await fetch(weatherApiUrl);
       const weatherData = await weatherResponse.json();
       const score = calculateSunsetQuality(weatherData.current);
