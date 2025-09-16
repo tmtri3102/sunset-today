@@ -1,7 +1,9 @@
 import { Redis } from "@upstash/redis";
 import webpush from "web-push";
-
-const redis = Redis.fromEnv();
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN,
+});
 
 // Configure web-push with your VAPID keys from Vercel environment variables
 webpush.setVapidDetails(
