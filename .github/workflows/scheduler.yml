@@ -1,0 +1,15 @@
+name: Sunset Check Scheduler
+
+on:
+  schedule:
+    # Runs every 15 minutes between 8:00 and 12:00 UTC
+    - cron: "*/15 8-12 * * *"
+  # This allows you to run it manually from the Actions tab for testing
+  workflow_dispatch:
+
+jobs:
+  trigger-vercel-function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Vercel Function to Check Sunsets
+        run: curl --request GET "https://sunset-today.vercel.app/api/check_sunsets"
