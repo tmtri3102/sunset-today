@@ -48,6 +48,11 @@ export default async function handler(request, response) {
     for (const subData of subscribers) {
       if (!subData) continue;
 
+      console.log("--- RETRIEVED FROM REDIS ---");
+      console.log(subData);
+      console.log("--- SENDING NOTIFICATION TO ENDPOINT ---");
+      console.log(subData.subscription);
+
       // CORRECTED LINE
       const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${subData.latitude}&longitude=${subData.longitude}&current=cloud_cover,relative_humidity_2m,visibility,wind_speed_10m,precipitation_probability&daily=sunset&timezone=${subData.timezone}`;
       const weatherResponse = await fetch(weatherApiUrl);

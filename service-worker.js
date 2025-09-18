@@ -1,6 +1,7 @@
 // File: service-worker.js
 
 self.addEventListener("push", (event) => {
+  console.log("[Service Worker] Push Received!");
   let title = "Sunset Alert!";
   let body = "";
 

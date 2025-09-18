@@ -34,6 +34,8 @@ export default async function handler(request, response) {
     };
 
     // Store the data in Redis
+    console.log("--- SAVING TO REDIS ---");
+    console.log(JSON.stringify(value, null, 2));
     await redis.set(`push-subscriber:${key}`, JSON.stringify(value));
     response.status(201).json({ message: "Subscription saved." });
   } catch (error) {
