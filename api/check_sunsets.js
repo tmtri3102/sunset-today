@@ -1,11 +1,7 @@
 // File: api/check_sunsets.js
 import { Redis } from "@upstash/redis";
 import webpush from "web-push";
-
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL,
-  token: process.env.KV_REST_API_TOKEN,
-});
+const redis = Redis.fromEnv();
 
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT,
