@@ -69,15 +69,22 @@ export default async function handler(request, response) {
           (sunsetTime.getTime() - now.getTime()) / (1000 * 60);
 
         // Only send if sunset is between 0 and 15 minutes away
-        if (minutesToSunset > 0 && minutesToSunset <= 15) {
-          const payload = JSON.stringify({
-            title: `Hoàng hôn hôm nay tại ${subData.city}: ${score}/100!`,
-            body: `15 phút nữa là hoàng hôn. Chúc bạn buổi chiều vui vẻ!`,
-          });
+        // if (minutesToSunset > 0 && minutesToSunset <= 15) {
+        //   const payload = JSON.stringify({
+        //     title: `Hoàng hôn hôm nay tại ${subData.city}: ${score}/100!`,
+        //     body: `15 phút nữa là hoàng hôn. Chúc bạn buổi chiều vui vẻ!`,
+        //   });
 
-          await webpush.sendNotification(subData.subscription, payload);
-          console.log(`Notification sent to ${subData.city} subscriber.`);
-        }
+        //   await webpush.sendNotification(subData.subscription, payload);
+        //   console.log(`Notification sent to ${subData.city} subscriber.`);
+        // }
+        const payload = JSON.stringify({
+          title: `Hoàng hôn hôm nay tại ${subData.city}: ${score}/100!`,
+          body: `15 phút nữa là hoàng hôn. Chúc bạn buổi chiều vui vẻ!`,
+        });
+
+        await webpush.sendNotification(subData.subscription, payload);
+        console.log(`Notification sent to ${subData.city} subscriber.`);
       }
     }
 
