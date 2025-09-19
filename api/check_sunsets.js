@@ -17,7 +17,8 @@ function calculateSunsetQuality(clouds, pm25, visibility, humidity, pressure) {
     if (value >= targetStart && value <= targetEnd) return maxScore;
     const distance =
       value < targetStart ? targetStart - value : value - targetEnd;
-    return Math.max(0, (score = maxScore - (distance * maxScore) / 100));
+    const score = maxScore - (distance * maxScore) / 100;
+    return Math.max(0, score);
   };
 
   const cloudScore = calculateScore(clouds, 40, 60);

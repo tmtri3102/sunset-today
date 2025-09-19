@@ -119,6 +119,7 @@
         const formulaBreakdown = document.getElementById("formula-breakdown");
 
         // --- 2. Global Variable ---
+        let subscribeMessageElement;
         let countdownInterval;
 
         // --- 3. API Endpoints ---
@@ -133,9 +134,11 @@
           if (event.key === "Enter") findSunset();
         });
 
-        countdownContainer.addEventListener("click", (event) => {
-          if (event.target && event.target.id === "enable-notifications-link") {
+        formulaBreakdown.addEventListener("click", (event) => {
+          if (event.target && event.target.id === "enable-notifications-btn") {
             event.preventDefault();
+            subscribeMessageElement =
+              document.getElementById("subscribe-message");
             subscribeUserToPush();
           }
         });
@@ -153,31 +156,53 @@
         }
 
         async function subscribeUserToPush() {
+          if (!subscribeMessageElement) return;
           const city = cityInput.value.trim();
           if (!city) {
-            alert("Bạn chưa điền tên thành phố trong ô tìm kiếm.");
+            subscribeMessageElement.textContent =
+              "Bạn chưa điền tên thành phố.";
+            subscribeMessageElement.style.color = "red";
             return;
           }
-          const permission = await Notification.requestPermission();
-          if (permission !== "granted") return;
+
+          subscribeMessageElement.textContent = "Đang xin quyền thông báo...";
+          subscribeMessageElement.style.color = "gray";
 
           try {
+            const permission = await Notification.requestPermission();
+            if (permission !== "granted") {
+              subscribeMessageElement.textContent =
+                "Bạn đã không cấp quyền nhận thông báo.";
+              subscribeMessageElement.style.color = "orange";
+              return;
+            }
+
             const swRegistration = await navigator.serviceWorker.ready;
             const vapidPublicKey =
               "BJUIBmQ5BCljrwN3xHY2X8yhawY5KV74i9Br9utNnISg29DEo_m9LRP2_bFUWGuGLfzSBAuc0SXooQamB0amrH8";
+            subscribeMessageElement.textContent = "Đang đăng ký với máy chủ...";
+
             const subscription = await swRegistration.pushManager.subscribe({
               userVisibleOnly: true,
               applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
             });
-            await fetch("/api/save-subscription", {
+            const response = await fetch("/api/save-subscription", {
               method: "POST",
               body: JSON.stringify({ subscription, city }),
               headers: { "Content-Type": "application/json" },
             });
-            alert(`Đăng ký nhận thông báo cho ${city} thành công!`);
+
+            // alert(`Đăng ký nhận thông báo cho ${city} thành công!`);
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message);
+
+            subscribeMessageElement.textContent = result.message;
+            subscribeMessageElement.style.color = "green";
           } catch (error) {
             console.error("Failed to subscribe the user: ", error);
             alert("Đăng ký nhận thông báo thất bại.");
+            subscribeMessageElement.textContent = `Đăng ký thất bại: ${error.message}`;
+            subscribeMessageElement.style.color = "red";
           }
         }
 
@@ -438,6 +463,12 @@
             <li><strong>Android:</strong> Mở app trên Chrome > Menu > "Cài đặt ứng dụng" > <i>Mở app từ MH chính > Tìm thành phố > Bấm "nhận thông báo" > "Cho phép" khi popup hiện > Chờ tới khi popup "Đăng ký nhận thông báo thành công"</i></li>
           </ul>
         </div>
+        <div class="mt-4">
+                <button id="enable-notifications-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                    Nhận thông báo cho thành phố này
+                </button>
+                <p id="subscribe-message" class="text-sm mt-2 min-h-[1.2em] text-center"></p>
+            </div>
       `;
         }
 
