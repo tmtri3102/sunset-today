@@ -11,7 +11,7 @@ export default async function handler(request, response) {
   try {
     const { subscription, city } = request.body;
 
-    // Fetch geo-data for the city to store coordinates
+    // Lấy thông tin địa lý của thành phố mới
     const geoResponse = await fetch(
       `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
         city
@@ -21,23 +21,59 @@ export default async function handler(request, response) {
     if (!geoData.results || geoData.results.length === 0) {
       return response.status(400).json({ message: "City not found." });
     }
-    const location = geoData.results[0];
+    const newLocation = geoData.results[0];
 
-    // The subscription endpoint is a unique identifier for the device/browser
-    const key = subscription.endpoint;
-    const value = {
-      subscription,
-      city: location.name,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      timezone: location.timezone,
-    };
+    const key = `push-subscriber:${subscription.endpoint}`;
 
-    // Store the data in Redis
-    console.log("--- SAVING TO REDIS ---");
-    console.log(JSON.stringify(value, null, 2));
-    await redis.set(`push-subscriber:${key}`, JSON.stringify(value));
-    response.status(201).json({ message: "Subscription saved." });
+    // 1. Đọc dữ liệu cũ từ database
+    const existingData = await redis.get(key);
+
+    let finalValue;
+    if (existingData) {
+      // Nếu đã có đăng ký từ trước
+      finalValue = existingData;
+      // Kiểm tra xem thành phố mới đã có trong danh sách chưa
+      const cityExists = finalValue.locations.some(
+        (loc) => loc.id === newLocation.id
+      );
+      if (cityExists) {
+        return response
+          .status(200)
+          .json({
+            message: `Bạn đã đăng ký nhận thông báo cho ${newLocation.name} rồi.`,
+          });
+      }
+      // 2. Thêm thành phố mới vào danh sách
+      finalValue.locations.push({
+        id: newLocation.id,
+        city: newLocation.name,
+        latitude: newLocation.latitude,
+        longitude: newLocation.longitude,
+        timezone: newLocation.timezone,
+      });
+    } else {
+      // Nếu đây là lần đăng ký đầu tiên
+      finalValue = {
+        subscription,
+        locations: [
+          {
+            id: newLocation.id,
+            city: newLocation.name,
+            latitude: newLocation.latitude,
+            longitude: newLocation.longitude,
+            timezone: newLocation.timezone,
+          },
+        ],
+      };
+    }
+
+    // 3. Lưu lại dữ liệu đã cập nhật
+    await redis.set(key, JSON.stringify(finalValue));
+    response
+      .status(201)
+      .json({
+        message: `Đã thêm ${newLocation.name} vào danh sách nhận thông báo!`,
+      });
   } catch (error) {
     console.error("Error saving subscription:", error);
     response.status(500).json({ message: "Failed to save subscription." });

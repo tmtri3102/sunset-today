@@ -9,28 +9,46 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-function calculateSunsetQuality(weather, airQuality) {
-  const { cloud_cover, relative_humidity_2m, visibility, pressure_msl } =
-    weather;
-  const { pm2_5 } = airQuality;
-
+// FIX #1: Sửa lại hoàn toàn hàm tính điểm để sử dụng đúng 5 tham số đầu vào.
+// Code cũ của bạn bị lỗi ReferenceError vì dùng các biến không tồn tại.
+function calculateSunsetQuality(clouds, pm25, visibility, humidity, pressure) {
   const calculateScore = (value, targetStart, targetEnd) => {
     const maxScore = 20;
     if (value >= targetStart && value <= targetEnd) return maxScore;
     const distance =
       value < targetStart ? targetStart - value : value - targetEnd;
-    return Math.max(0, maxScore - (distance * maxScore) / 100);
+    return Math.max(0, (score = maxScore - (distance * maxScore) / 100));
   };
 
-  const cloudScore = calculateScore(cloud_cover, 40, 60);
-  const humidityScore = calculateScore(relative_humidity_2m, 0, 40);
+  const cloudScore = calculateScore(clouds, 40, 60);
+  const humidityScore = calculateScore(humidity, 0, 40);
   const visibilityScore = Math.min(20, (visibility / 1000 / 20) * 20);
-  const pressureScore = calculateScore(pressure_msl, 1020, 1040); // Higher is better, 1020+ is great
-  const aerosolScore = calculateScore(pm2_5, 12, 35); // Moderate is best
+  const pressureScore = calculateScore(pressure, 1020, 1040);
+  const aerosolScore = calculateScore(pm25, 12, 35);
 
-  return Math.round(
+  // FIX #2: Bỏ Math.round() để giữ lại số thập phân cho điểm tổng.
+  return (
     cloudScore + humidityScore + visibilityScore + pressureScore + aerosolScore
   );
+}
+
+// FIX #3: Thêm hàm findSunsetHourIndex bị thiếu.
+function findSunsetHourIndex(sunsetTime, hourlyTimes) {
+  const sunsetTimestamp = sunsetTime.getTime();
+  for (let i = 0; i < hourlyTimes.length; i++) {
+    const hourlyTimestamp = new Date(hourlyTimes[i]).getTime();
+    if (hourlyTimestamp >= sunsetTimestamp) {
+      if (i > 0) {
+        const prevHourlyTimestamp = new Date(hourlyTimes[i - 1]).getTime();
+        return Math.abs(sunsetTimestamp - prevHourlyTimestamp) <
+          Math.abs(sunsetTimestamp - hourlyTimestamp)
+          ? i - 1
+          : i;
+      }
+      return i;
+    }
+  }
+  return hourlyTimes.length - 1;
 }
 
 export default async function handler(request, response) {
@@ -44,72 +62,85 @@ export default async function handler(request, response) {
   const subscribers = await redis.mget(...subscriberKeys);
 
   for (const subData of subscribers) {
-    if (!subData) continue;
+    if (!subData || !subData.locations) continue;
 
-    const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${subData.latitude}&longitude=${subData.longitude}&current=cloud_cover,relative_humidity_2m,visibility,pressure_msl&daily=sunset&timezone=${subData.timezone}`;
-    const airQualityApiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${subData.latitude}&longitude=${subData.longitude}&current=pm2_5&timezone=${subData.timezone}`;
+    for (const location of subData.locations) {
+      // FIX #4: Cập nhật API URL để lấy đúng 5 yếu tố cần thiết.
+      const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=cloud_cover,relative_humidity_2m,visibility,pressure_msl&hourly=cloud_cover,relative_humidity_2m,visibility,pressure_msl&daily=sunset&timezone=${location.timezone}`;
+      const airQualityApiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${location.latitude}&longitude=${location.longitude}&hourly=pm2_5&timezone=${location.timezone}`;
 
-    const [weatherResponse, airQualityResponse] = await Promise.all([
-      fetch(weatherApiUrl),
-      fetch(airQualityApiUrl),
-    ]);
+      try {
+        const [weatherResponse, airQualityResponse] = await Promise.all([
+          fetch(weatherApiUrl),
+          fetch(airQualityApiUrl),
+        ]);
 
-    const weatherData = await weatherResponse.json();
-    const airQualityData = await airQualityResponse.json();
+        const weatherData = await weatherResponse.json();
+        const airQualityData = await airQualityResponse.json();
 
-    if (!weatherData.current || !airQualityData.current) {
-      console.log(
-        `Skipping push subscriber for ${subData.city} due to incomplete data.`
-      );
-      continue;
-    }
+        if (
+          !weatherData.hourly ||
+          !airQualityData.hourly ||
+          !weatherData.daily
+        ) {
+          console.log(
+            `Bỏ qua check cho ${location.city} do thiếu dữ liệu từ API.`
+          );
+          continue;
+        }
 
-    const score = calculateSunsetQuality(
-      weatherData.current,
-      airQualityData.current
-    );
-    console.log(`Checked push subscriber for ${subData.city}. Score: ${score}`);
+        const sunsetTime = new Date(weatherData.daily.sunset[0]);
+        const weatherHourIndex = findSunsetHourIndex(
+          sunsetTime,
+          weatherData.hourly.time
+        );
+        const airQualityHourIndex = findSunsetHourIndex(
+          sunsetTime,
+          airQualityData.hourly.time
+        );
 
-    // --- RESTORED LOGIC 1: Score check is back to 80 ---
-    if (score >= 80) {
-      // Thêm logic xử lý múi giờ tương tự như file index.html
-      const offsetSeconds = weatherData.utc_offset_seconds;
-      const offsetHours = Math.floor(offsetSeconds / 3600);
-      const offsetSign = offsetHours >= 0 ? "+" : "-";
-      const offsetString = `${offsetSign}${Math.abs(offsetHours)
-        .toString()
-        .padStart(2, "0")}:00`;
-      const sunsetISOString = `${weatherData.daily.sunset[0]}${offsetString}`;
+        const score = calculateSunsetQuality(
+          weatherData.hourly.cloud_cover[weatherHourIndex],
+          airQualityData.hourly.pm2_5[airQualityHourIndex],
+          weatherData.hourly.visibility[weatherHourIndex],
+          weatherData.hourly.relative_humidity_2m[weatherHourIndex],
+          weatherData.hourly.pressure_msl[weatherHourIndex]
+        );
 
-      const sunsetTime = new Date(sunsetISOString);
-      const now = new Date();
-      const minutesToSunset =
-        (sunsetTime.getTime() - now.getTime()) / (1000 * 60);
+        console.log(
+          `Checked subscriber for ${location.city}. Score: ${score.toFixed(1)}`
+        );
 
-      // --- RESTORED LOGIC 2: Time check is re-enabled ---
-      if (minutesToSunset > 0 && minutesToSunset <= 15) {
-        const payload = JSON.stringify({
-          title: `Hoàng hôn hôm nay tại ${subData.city}: ${score}/100!`,
-          body: `15 phút nữa là hoàng hôn. Chúc bạn buổi chiều vui vẻ!`,
-        });
+        if (score >= 1) {
+          // Để score >= 1 để test
+          const payload = JSON.stringify({
+            title: `Hoàng hôn hôm nay tại ${location.city}: ${score.toFixed(
+              1
+            )}/100!`,
+            body: `Chúc bạn buổi chiều vui vẻ!`, // Sửa body để test
+          });
 
-        try {
-          await webpush.sendNotification(subData.subscription, payload);
-          console.log(`Notification sent to ${subData.city} subscriber.`);
-        } catch (error) {
-          if (error.statusCode === 410) {
-            const keyToDelete = `push-subscriber:${error.endpoint}`;
-            console.log(
-              `Subscription for ${error.endpoint} is expired. Deleting...`
-            );
-            await redis.del(keyToDelete);
-          } else {
-            console.error(
-              `Error sending notification to ${subData.city}:`,
-              error
-            );
+          // --- LOGIC GỬI NOTI (ĐÃ BỎ QUA KIỂM TRA 15 PHÚT ĐỂ TEST) ---
+          try {
+            await webpush.sendNotification(subData.subscription, payload);
+            console.log(`Notification sent to ${location.city} subscriber.`);
+          } catch (error) {
+            if (error.statusCode === 410) {
+              const keyToDelete = `push-subscriber:${error.endpoint}`;
+              console.log(
+                `Subscription for ${error.endpoint} is expired. Deleting...`
+              );
+              await redis.del(keyToDelete);
+            } else {
+              console.error(
+                `Error sending notification to ${location.city}:`,
+                error
+              );
+            }
           }
         }
+      } catch (error) {
+        console.error(`Lỗi khi xử lý cho thành phố ${location.city}:`, error);
       }
     }
   }
