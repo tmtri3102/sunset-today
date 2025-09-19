@@ -214,9 +214,23 @@
               getAirQualityData(geoData.latitude, geoData.longitude),
             ]);
 
+            // Lấy thông tin chênh lệch múi giờ (tính bằng giây) từ API
+            const offsetSeconds = weatherData.utc_offset_seconds;
+            // Tạo chuỗi múi giờ đúng chuẩn (ví dụ: +07:00 hoặc +03:00)
+            const offsetHours = Math.floor(offsetSeconds / 3600);
+            const offsetSign = offsetHours >= 0 ? "+" : "-";
+            const offsetString = `${offsetSign}${Math.abs(offsetHours)
+              .toString()
+              .padStart(2, "0")}:00`;
+
+            // Ghép chuỗi thời gian hoàng hôn với chuỗi múi giờ để tạo ra một thời điểm chính xác
+            const todaySunsetString = `${weatherData.daily.sunset[0]}${offsetString}`;
+            const tomorrowSunsetString = `${weatherData.daily.sunset[1]}${offsetString}`;
+
             const now = new Date();
-            const todaySunset = new Date(weatherData.daily.sunset[0]);
-            const tomorrowSunset = new Date(weatherData.daily.sunset[1]);
+            const todaySunset = new Date(todaySunsetString);
+            const tomorrowSunset = new Date(tomorrowSunsetString);
+
             const sunsetTime = now > todaySunset ? tomorrowSunset : todaySunset;
 
             const weatherSunsetHourIndex = findSunsetHourIndex(
@@ -333,13 +347,12 @@
           const humidityScore = calculateScore(humidity, 0, 40);
           const pressureScore = calculateScore(pressure, 1020, 1040);
 
-          const finalScore = Math.round(
+          const finalScore =
             cloudScore +
-              aerosolScore +
-              visibilityScore +
-              humidityScore +
-              pressureScore
-          );
+            aerosolScore +
+            visibilityScore +
+            humidityScore +
+            pressureScore;
 
           let description;
           if (finalScore >= 95)
@@ -351,7 +364,7 @@
           else description = "Không cao. Khó có hoàng hôn đẹp.";
 
           qualityContainer.style.display = "block";
-          qualityRatingDisplay.textContent = `${finalScore}/100`;
+          qualityRatingDisplay.textContent = `${finalScore.toFixed(1)}/100`;
           qualityRatingDisplay.className = `text-3xl font-extrabold mt-2 ${getFinalScoreColor(
             finalScore
           )}`;
@@ -412,6 +425,17 @@
           <ul class="text-xs sm:text-sm mt-4 space-y-2">
               <li>Tổng điểm: 100, dựa trên 5 yếu tố thời tiết.</li>
               <li>Mỗi yếu tố tối đa 20 điểm nếu trong phạm vi lý tưởng (PVLT), lệch càng nhiều điểm càng giảm.</li>
+              <li>Màu tổng điểm từ cao-thấp: lá đậm (>= 95), lá (>=85), xanh (>=70), xám (<70), </li>
+              <li>Màu điểm yếu tố từ cao-thấp: lá (18-20), vàng (<18), đỏ (<12)</li>
+              <li>Điểm yếu tố = <strong>20 - (Chênh lệch với PVLT x 0.2)</strong> với 0.2 là để chuyển đổi thang điểm 20 trên tổng 100</li>
+              <li class="italic">Ví dụ: Độ che phủ mây hôm nay 93% - PVLT 60% = 33% <br/>=> Điểm yếu tố = 20 - (33 x 0.2) = <strong>13.4</strong></li>
+          </ul>
+          <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-2 mt-4">Cách nhận thông báo</h3>
+          <ul class="text-xs sm:text-sm mt-4 space-y-2">
+            <li>Thông báo sẽ được gửi khi <strong>tổng điểm hôm đó >=80 và trong vòng 15 phút trước hoàng hôn</strong></li>
+            <li><strong>Lưu ý:</strong> Chế độ Low Power Mode hay Focus Mode có thể chặn hoặc làm trễ thông báo.</li>
+            <li><strong>IPhone:</strong> Mở app trên Safari > Chia sẻ > Thêm vào MH chính > <i>Mở app từ MH chính > Tìm thành phố > Bấm "nhận thông báo" > "Cho phép" khi popup hiện > Chờ tới khi popup "Đăng ký nhận thông báo thành công"</i></li>
+            <li><strong>Android:</strong> Mở app trên Chrome > Menu > "Cài đặt ứng dụng" > <i>Mở app từ MH chính > Tìm thành phố > Bấm "nhận thông báo" > "Cho phép" khi popup hiện > Chờ tới khi popup "Đăng ký nhận thông báo thành công"</i></li>
           </ul>
         </div>
       `;

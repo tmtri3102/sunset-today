@@ -72,7 +72,16 @@ export default async function handler(request, response) {
 
     // --- RESTORED LOGIC 1: Score check is back to 80 ---
     if (score >= 80) {
-      const sunsetTime = new Date(weatherData.daily.sunset[0]);
+      // Thêm logic xử lý múi giờ tương tự như file index.html
+      const offsetSeconds = weatherData.utc_offset_seconds;
+      const offsetHours = Math.floor(offsetSeconds / 3600);
+      const offsetSign = offsetHours >= 0 ? "+" : "-";
+      const offsetString = `${offsetSign}${Math.abs(offsetHours)
+        .toString()
+        .padStart(2, "0")}:00`;
+      const sunsetISOString = `${weatherData.daily.sunset[0]}${offsetString}`;
+
+      const sunsetTime = new Date(sunsetISOString);
       const now = new Date();
       const minutesToSunset =
         (sunsetTime.getTime() - now.getTime()) / (1000 * 60);
