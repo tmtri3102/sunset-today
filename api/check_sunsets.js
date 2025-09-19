@@ -1,6 +1,6 @@
-// File: api/check_sunsets.js
 import { Redis } from "@upstash/redis";
 import webpush from "web-push";
+
 const redis = Redis.fromEnv();
 
 webpush.setVapidDetails(
@@ -9,14 +9,11 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-function calculateSunsetQuality(weather) {
-  const {
-    cloud_cover,
-    relative_humidity_2m,
-    visibility,
-    wind_speed_10m,
-    precipitation_probability,
-  } = weather;
+function calculateSunsetQuality(weather, airQuality) {
+  const { cloud_cover, relative_humidity_2m, visibility, pressure_msl } =
+    weather;
+  const { pm2_5 } = airQuality;
+
   const calculateScore = (value, targetStart, targetEnd) => {
     const maxScore = 20;
     if (value >= targetStart && value <= targetEnd) return maxScore;
@@ -24,13 +21,15 @@ function calculateSunsetQuality(weather) {
       value < targetStart ? targetStart - value : value - targetEnd;
     return Math.max(0, maxScore - (distance * maxScore) / 100);
   };
+
   const cloudScore = calculateScore(cloud_cover, 40, 60);
   const humidityScore = calculateScore(relative_humidity_2m, 0, 40);
   const visibilityScore = Math.min(20, (visibility / 1000 / 20) * 20);
-  const windScore = calculateScore(wind_speed_10m, 0, 10);
-  const precipScore = calculateScore(precipitation_probability, 0, 5);
+  const pressureScore = calculateScore(pressure_msl, 1020, 1040); // Higher is better, 1020+ is great
+  const aerosolScore = calculateScore(pm2_5, 12, 35); // Moderate is best
+
   return Math.round(
-    cloudScore + humidityScore + visibilityScore + windScore + precipScore
+    cloudScore + humidityScore + visibilityScore + pressureScore + aerosolScore
   );
 }
 
@@ -47,43 +46,60 @@ export default async function handler(request, response) {
   for (const subData of subscribers) {
     if (!subData) continue;
 
-    const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${subData.latitude}&longitude=${subData.longitude}&current=cloud_cover,relative_humidity_2m,visibility,wind_speed_10m,precipitation_probability&daily=sunset&timezone=${subData.timezone}`;
-    const weatherResponse = await fetch(weatherApiUrl);
+    const weatherApiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${subData.latitude}&longitude=${subData.longitude}&current=cloud_cover,relative_humidity_2m,visibility,pressure_msl&daily=sunset&timezone=${subData.timezone}`;
+    const airQualityApiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${subData.latitude}&longitude=${subData.longitude}&current=pm2_5&timezone=${subData.timezone}`;
+
+    const [weatherResponse, airQualityResponse] = await Promise.all([
+      fetch(weatherApiUrl),
+      fetch(airQualityApiUrl),
+    ]);
+
     const weatherData = await weatherResponse.json();
-    const score = calculateSunsetQuality(weatherData.current);
+    const airQualityData = await airQualityResponse.json();
+
+    if (!weatherData.current || !airQualityData.current) {
+      console.log(
+        `Skipping push subscriber for ${subData.city} due to incomplete data.`
+      );
+      continue;
+    }
+
+    const score = calculateSunsetQuality(
+      weatherData.current,
+      airQualityData.current
+    );
     console.log(`Checked push subscriber for ${subData.city}. Score: ${score}`);
 
-    if (score >= 1) {
-      // Using score >= 1 for testing
+    // --- RESTORED LOGIC 1: Score check is back to 80 ---
+    if (score >= 80) {
       const sunsetTime = new Date(weatherData.daily.sunset[0]);
       const now = new Date();
       const minutesToSunset =
         (sunsetTime.getTime() - now.getTime()) / (1000 * 60);
 
-      const payload = JSON.stringify({
-        title: `Hoàng hôn hôm nay tại ${subData.city}: ${score}/100!`,
-        body: `15 phút nữa là hoàng hôn. Chúc bạn buổi chiều vui vẻ!`,
-      });
+      // --- RESTORED LOGIC 2: Time check is re-enabled ---
+      if (minutesToSunset > 0 && minutesToSunset <= 15) {
+        const payload = JSON.stringify({
+          title: `Hoàng hôn hôm nay tại ${subData.city}: ${score}/100!`,
+          body: `15 phút nữa là hoàng hôn. Chúc bạn buổi chiều vui vẻ!`,
+        });
 
-      try {
-        // We temporarily removed the time check for this test
-        await webpush.sendNotification(subData.subscription, payload);
-        console.log(`Notification sent to ${subData.city} subscriber.`);
-      } catch (error) {
-        // --- THIS IS THE NEW SELF-HEALING LOGIC ---
-        if (error.statusCode === 410) {
-          // 410 Gone - The subscription is expired and should be deleted.
-          const keyToDelete = `push-subscriber:${error.endpoint}`;
-          console.log(
-            `Subscription for ${error.endpoint} is expired. Deleting...`
-          );
-          await redis.del(keyToDelete);
-        } else {
-          // For any other error, just log it.
-          console.error(
-            `Error sending notification to ${subData.city}:`,
-            error
-          );
+        try {
+          await webpush.sendNotification(subData.subscription, payload);
+          console.log(`Notification sent to ${subData.city} subscriber.`);
+        } catch (error) {
+          if (error.statusCode === 410) {
+            const keyToDelete = `push-subscriber:${error.endpoint}`;
+            console.log(
+              `Subscription for ${error.endpoint} is expired. Deleting...`
+            );
+            await redis.del(keyToDelete);
+          } else {
+            console.error(
+              `Error sending notification to ${subData.city}:`,
+              error
+            );
+          }
         }
       }
     }

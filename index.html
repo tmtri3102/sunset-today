@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>A small gift by Tri. Happy Birthday</title>
+    <title>Sunset Today</title>
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌅</text></svg>"
@@ -25,6 +25,16 @@
         padding: 1rem;
         border-radius: 0.5rem;
         background-color: #fafafa;
+      }
+      @media (max-width: 390px) {
+        body {
+          padding-left: 14px;
+          padding-right: 14px;
+        }
+        #main-container > h1 {
+          font-size: 1.25rem; /* text-xl */
+          line-height: 1.75rem;
+        }
       }
     </style>
   </head>
@@ -114,6 +124,8 @@
         // --- 3. API Endpoints ---
         const GEOCodingApi = "https://geocoding-api.open-meteo.com/v1/search";
         const WeatherApi = "https://api.open-meteo.com/v1/forecast";
+        const AirQualityApi =
+          "https://air-quality-api.open-meteo.com/v1/air-quality";
 
         // --- 4. Event Listeners ---
         getSunsetBtn.addEventListener("click", findSunset);
@@ -196,25 +208,33 @@
           try {
             const geoData = await getGeoCoordinates(city);
             locationDisplay.textContent = `Khả năng có hoàng hôn đẹp tại ${geoData.name}, ${geoData.country} hôm nay`;
-            const weatherData = await getWeatherData(
-              geoData.latitude,
-              geoData.longitude
-            );
+
+            const [weatherData, airQualityData] = await Promise.all([
+              getWeatherData(geoData.latitude, geoData.longitude),
+              getAirQualityData(geoData.latitude, geoData.longitude),
+            ]);
+
             const now = new Date();
             const todaySunset = new Date(weatherData.daily.sunset[0]);
             const tomorrowSunset = new Date(weatherData.daily.sunset[1]);
             const sunsetTime = now > todaySunset ? tomorrowSunset : todaySunset;
-            const sunsetHourIndex = findSunsetHourIndex(
+
+            const weatherSunsetHourIndex = findSunsetHourIndex(
               sunsetTime,
               weatherData.hourly.time
             );
+            const airSunsetHourIndex = findSunsetHourIndex(
+              sunsetTime,
+              airQualityData.hourly.time
+            );
+
             startCountdown(sunsetTime);
             displaySunsetQuality(
-              weatherData.hourly.cloud_cover[sunsetHourIndex],
-              weatherData.hourly.relative_humidity_2m[sunsetHourIndex],
-              weatherData.hourly.visibility[sunsetHourIndex],
-              weatherData.hourly.wind_speed_10m[sunsetHourIndex],
-              weatherData.hourly.precipitation_probability[sunsetHourIndex]
+              weatherData.hourly.cloud_cover[weatherSunsetHourIndex],
+              weatherData.hourly.relative_humidity_2m[weatherSunsetHourIndex],
+              weatherData.hourly.visibility[weatherSunsetHourIndex],
+              weatherData.hourly.pressure_msl[weatherSunsetHourIndex],
+              airQualityData.hourly.pm2_5[airSunsetHourIndex]
             );
           } catch (error) {
             console.error("Error:", error);
@@ -258,14 +278,23 @@
         }
 
         async function getWeatherData(lat, lon) {
-          const apiUrl = `${WeatherApi}?latitude=${lat}&longitude=${lon}&daily=sunset&hourly=cloud_cover,relative_humidity_2m,visibility,wind_speed_10m,precipitation_probability&timezone=auto&forecast_days=2`;
+          const apiUrl = `${WeatherApi}?latitude=${lat}&longitude=${lon}&daily=sunset&hourly=cloud_cover,relative_humidity_2m,visibility,pressure_msl&timezone=auto&forecast_days=2`;
           const response = await fetch(apiUrl);
           if (!response.ok)
             throw new Error(`Lỗi lấy dữ liệu thời tiết: ${response.status}`);
           return response.json();
         }
 
-        // ** THIS IS THE CORE CALCULATION LOGIC THAT WAS MISSING **
+        async function getAirQualityData(lat, lon) {
+          const apiUrl = `${AirQualityApi}?latitude=${lat}&longitude=${lon}&hourly=pm2_5&timezone=auto&forecast_days=2`;
+          const response = await fetch(apiUrl);
+          if (!response.ok)
+            throw new Error(
+              `Lỗi lấy dữ liệu chất lượng không khí: ${response.status}`
+            );
+          return response.json();
+        }
+
         function calculateScore(value, targetStart, targetEnd) {
           const maxScore = 20;
           if (value >= targetStart && value <= targetEnd) {
@@ -294,21 +323,22 @@
           clouds,
           humidity,
           vis_m,
-          wind_kph,
-          precipProb
+          pressure,
+          pm2_5
         ) {
           const cloudScore = calculateScore(clouds, 40, 60);
-          const humidityScore = calculateScore(humidity, 0, 40);
+          const aerosolScore = calculateScore(pm2_5, 12, 35);
           const vis_km = vis_m / 1000;
           const visibilityScore = Math.min(20, (vis_km / 20) * 20);
-          const windScore = calculateScore(wind_kph, 0, 10);
-          const precipScore = calculateScore(precipProb, 0, 5);
+          const humidityScore = calculateScore(humidity, 0, 40);
+          const pressureScore = calculateScore(pressure, 1020, 1040);
+
           const finalScore = Math.round(
             cloudScore +
-              humidityScore +
+              aerosolScore +
               visibilityScore +
-              windScore +
-              precipScore
+              humidityScore +
+              pressureScore
           );
 
           let description;
@@ -328,7 +358,6 @@
           qualityDescriptionDisplay.textContent = description;
 
           formulaBreakdown.style.display = "block";
-          // ** THIS IS THE FULL HTML BREAKDOWN THAT WAS MISSING **
           formulaBreakdown.innerHTML = `
         <div class="grid grid-cols-2 sm:gap-4 gap-2 mt-6">
             <div class="factor-card">
@@ -337,15 +366,17 @@
                 <p class="text-xs text-gray-500 italic">Lý tưởng: 40-60%</p>
                 <p class="mt-2 text-sm font-bold ${getScoreColor(
                   cloudScore
-                )}">${cloudScore.toFixed(0)}/20</p>
+                )}">${cloudScore.toFixed(1)}</p>
             </div>
             <div class="factor-card">
-                <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg></span><h4 class="text-sm sm:text-base font-semibold">Độ ẩm</h4></div>
-                <p class="text-lg my-2 font-bold text-gray-700">${humidity}%</p>
-                <p class="text-xs text-gray-500 italic">Lý tưởng: <40%</p>
+                <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg></span><h4 class="text-sm sm:text-base font-semibold">Nồng độ PM2.5</h4></div>
+                <p class="text-lg my-2 font-bold text-gray-700">${pm2_5.toFixed(
+                  1
+                )} µg/m³</p>
+                <p class="text-xs text-gray-500 italic">Lý tưởng: 12-35 µg/m³</p>
                 <p class="mt-2 text-sm font-bold ${getScoreColor(
-                  humidityScore
-                )}">${humidityScore.toFixed(0)}/20</p>
+                  aerosolScore
+                )}">${aerosolScore.toFixed(1)}</p>
             </div>
             <div class="factor-card">
                 <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span><h4 class="text-sm sm:text-base font-semibold">Tầm nhìn</h4></div>
@@ -355,25 +386,25 @@
                 <p class="text-xs text-gray-500 italic">Lý tưởng: >20 km</p>
                 <p class="mt-2 text-sm font-bold ${getScoreColor(
                   visibilityScore
-                )}">${visibilityScore.toFixed(0)}/20</p>
+                )}">${visibilityScore.toFixed(1)}</p>
             </div>
             <div class="factor-card">
-                <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path></svg></span><h4 class="text-sm sm:text-base font-semibold">Tốc độ gió</h4></div>
-                <p class="text-lg my-2 font-bold text-gray-700">${wind_kph.toFixed(
-                  1
-                )} km/h</p>
-                <p class="text-xs text-gray-500 italic">Lý tưởng: <10 km/h</p>
+                <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg></span><h4 class="text-sm sm:text-base font-semibold">Độ ẩm</h4></div>
+                <p class="text-lg my-2 font-bold text-gray-700">${humidity}%</p>
+                <p class="text-xs text-gray-500 italic">Lý tưởng: <40%</p>
                 <p class="mt-2 text-sm font-bold ${getScoreColor(
-                  windScore
-                )}">${windScore.toFixed(0)}/20</p>
+                  humidityScore
+                )}">${humidityScore.toFixed(1)}</p>
             </div>
             <div class="factor-card col-span-2">
-                <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="16" y1="13" x2="16" y2="21"></line><line x1="8" y1="13" x2="8" y2="21"></line><line x1="12" y1="15" x2="12" y2="23"></line><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path></svg></span><h4 class="text-sm sm:text-base font-semibold">Xác suất mưa</h4></div>
-                <p class="text-lg my-2 font-bold text-gray-700">${precipProb}%</p>
-                <p class="text-xs text-gray-500 italic">Lý tưởng: <5%</p>
+                <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M15.6 3.3a10 10 0 1 0 4.1 1.9"/><path d="M12 12a4 4 0 0 0-4 4"/><path d="m12 6-1.5 3L12 12"/></svg></span><h4 class="text-sm sm:text-base font-semibold">Áp suất</h4></div>
+                <p class="text-lg my-2 font-bold text-gray-700">${pressure.toFixed(
+                  0
+                )} hPa</p>
+                <p class="text-xs text-gray-500 italic">Lý tưởng: >1020 hPa</p>
                 <p class="mt-2 text-sm font-bold ${getScoreColor(
-                  precipScore
-                )}">${precipScore.toFixed(0)}/20</p>
+                  pressureScore
+                )}">${pressureScore.toFixed(1)}</p>
             </div>
         </div>
         <div class="mt-8 text-gray-700">
