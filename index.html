@@ -463,13 +463,19 @@
             <li><strong>Android:</strong> Mở app trên Chrome > Menu > "Cài đặt ứng dụng" > <i>Mở app từ MH chính > Tìm thành phố > Bấm "nhận thông báo" > "Cho phép" khi popup hiện > Chờ tới khi popup "Đăng ký nhận thông báo thành công"</i></li>
           </ul>
         </div>
-        <div class="mt-4">
-                <button id="enable-notifications-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                    Nhận thông báo cho thành phố này
-                </button>
-                <p id="subscribe-message" class="text-sm mt-2 min-h-[1.2em] text-center"></p>
-            </div>
       `;
+
+          errorDisplay.className = "mt-6";
+          errorDisplay.innerHTML = `
+            <button id="subscribe-btn" class="inline-flex items-center justify-center py-2 px-4 bg-[#fafafa] border border-gray-400 rounded-full">
+              <span>Subscribe</span>
+            </button>
+            <p id="subscribe-message" class="text-sm mt-2 min-h-[1.2em] text-center"></p>
+          `;
+
+          document
+            .getElementById("subscribe-btn")
+            .addEventListener("click", subscribeUserToPush);
         }
 
         function startCountdown(targetDate) {
@@ -491,7 +497,7 @@
               (distance % (1000 * 60 * 60)) / (1000 * 60)
             );
             const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-            let str = `còn <span class="font-bold text-orange-600">${hours}h ${minutes}m ${seconds}s</span> nữa là hoàng hôn<br/><a href="#" id="enable-notifications-link" class="text-blue-600 hover:underline">(nhận thông báo)</a>`;
+            let str = `còn <span class="font-bold text-orange-600">${hours}h ${minutes}m ${seconds}s</span> nữa là hoàng hôn`;
             if (days > 0) str = `${days}d ` + str;
             countdownDisplay.innerHTML = str;
           };
@@ -500,7 +506,8 @@
         }
 
         function resetUI() {
-          errorDisplay.textContent = "";
+          errorDisplay.innerHTML = "";
+          errorDisplay.className = "font-medium mt-4 min-h-[1.2em]";
           locationDisplay.textContent = "";
           countdownContainer.style.display = "none";
           qualityContainer.style.display = "none";

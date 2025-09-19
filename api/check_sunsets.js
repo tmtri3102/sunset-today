@@ -112,31 +112,42 @@ export default async function handler(request, response) {
           `Checked subscriber for ${location.city}. Score: ${score.toFixed(1)}`
         );
 
-        if (score >= 1) {
-          // Để score >= 1 để test
-          const payload = JSON.stringify({
-            title: `Hoàng hôn hôm nay tại ${location.city}: ${score.toFixed(
-              1
-            )}/100!`,
-            body: `Chúc bạn buổi chiều vui vẻ!`, // Sửa body để test
-          });
+        if (score >= 80) {
+          const offsetSeconds = weatherData.utc_offset_seconds;
+          const offsetHours = Math.floor(offsetSeconds / 3600);
+          const offsetSign = offsetHours >= 0 ? "+" : "-";
+          const offsetString = `${offsetSign}${Math.abs(offsetHours)
+            .toString()
+            .padStart(2, "0")}:00`;
+          const sunsetISOString = `${weatherData.daily.sunset[0]}${offsetString}`;
 
-          // --- LOGIC GỬI NOTI (ĐÃ BỎ QUA KIỂM TRA 15 PHÚT ĐỂ TEST) ---
-          try {
-            await webpush.sendNotification(subData.subscription, payload);
-            console.log(`Notification sent to ${location.city} subscriber.`);
-          } catch (error) {
-            if (error.statusCode === 410) {
-              const keyToDelete = `push-subscriber:${error.endpoint}`;
-              console.log(
-                `Subscription for ${error.endpoint} is expired. Deleting...`
-              );
-              await redis.del(keyToDelete);
-            } else {
-              console.error(
-                `Error sending notification to ${location.city}:`,
-                error
-              );
+          const sunsetTimeWithOffset = new Date(sunsetISOString);
+          const now = new Date();
+          const minutesToSunset =
+            (sunsetTimeWithOffset.getTime() - now.getTime()) / (1000 * 60);
+
+          if (minutesToSunset > 0 && minutesToSunset <= 15) {
+            const payload = JSON.stringify({
+              title: `${score.toFixed(1)}/100 tại ${location.city}`,
+              body: `Hoàng hôn trong vòng 15 phút nữa!`,
+            });
+
+            try {
+              await webpush.sendNotification(subData.subscription, payload);
+              console.log(`Notification sent to ${location.city} subscriber.`);
+            } catch (error) {
+              if (error.statusCode === 410) {
+                const keyToDelete = `push-subscriber:${error.endpoint}`;
+                console.log(
+                  `Subscription for ${error.endpoint} is expired. Deleting...`
+                );
+                await redis.del(keyToDelete);
+              } else {
+                console.error(
+                  `Error sending notification to ${location.city}:`,
+                  error
+                );
+              }
             }
           }
         }
