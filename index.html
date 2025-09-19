@@ -144,7 +144,6 @@
             event.preventDefault();
             subscribeMessageElement =
               document.getElementById("subscribe-message");
-            subscribeMessageElement.classList.add("text-left");
             subscribeUserToPush();
           }
         });
@@ -207,7 +206,7 @@
           } catch (error) {
             console.error("Failed to subscribe the user: ", error);
             alert("Đăng ký nhận thông báo thất bại.");
-            subscribeMessageElement.textContent = `Đăng ký thất bại: ${error.message}`;
+            subscribeMessageElement.textContent = `Đăng ký thất bại`;
             subscribeMessageElement.style.color = "red";
           }
         }
@@ -458,15 +457,15 @@
               <li>Mỗi yếu tố tối đa 20 điểm nếu trong phạm vi lý tưởng (PVLT), lệch càng nhiều điểm càng giảm.</li>
               <li>Màu tổng điểm từ cao-thấp: lá đậm (>= 95), lá (>=85), xanh (>=70), xám (<70), </li>
               <li>Màu điểm yếu tố từ cao-thấp: lá (18-20), vàng (<18), đỏ (<12)</li>
-              <li>Điểm yếu tố = <strong>20 - (Chênh lệch với PVLT x 0.2)</strong> với 0.2 là để chuyển đổi thang điểm 20 trên tổng 100</li>
+              <li>Điểm yếu tố = <strong>20 - (Chênh lệch với PVLT x 0.2)</strong> <br/>với 0.2 là để chuyển đổi thang điểm 20 trên tổng 100</li>
               <li class="italic">Ví dụ: Độ che phủ mây hôm nay 93% - PVLT 60% = 33% <br/>=> Điểm yếu tố = 20 - (33 x 0.2) = <strong>13.4</strong></li>
           </ul>
           <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-2 mt-4">Cách nhận thông báo</h3>
           <ul class="text-xs sm:text-sm mt-4 space-y-2">
             <li>Thông báo sẽ được gửi khi <strong>tổng điểm hôm đó >=80 và trong vòng 15 phút trước hoàng hôn</strong></li>
             <li><strong>Lưu ý:</strong> Chế độ Low Power Mode hay Focus Mode có thể chặn hoặc làm trễ thông báo.</li>
-            <li><strong>IPhone:</strong> Mở app trên Safari > Chia sẻ > Thêm vào MH chính > <i>Mở app từ MH chính > Tìm thành phố > Bấm "nhận thông báo" > "Cho phép" khi popup hiện > Chờ tới khi popup "Đăng ký nhận thông báo thành công"</i></li>
-            <li><strong>Android:</strong> Mở app trên Chrome > Menu > "Cài đặt ứng dụng" > <i>Mở app từ MH chính > Tìm thành phố > Bấm "nhận thông báo" > "Cho phép" khi popup hiện > Chờ tới khi popup "Đăng ký nhận thông báo thành công"</i></li>
+            <li><strong>IPhone:</strong> <i>Mở web trên Safari > Chia sẻ > Thêm vào MH chính > Mở app > Tìm thành phố > "Nhận thông báo" > "Cho phép" > Chờ popup xác nhận.</i></li>
+            <li><strong>Android:</strong> <i>Mở web trên Chrome > Menu > "Cài đặt ứng dụng" > Mở app > Tìm thành phố > "Nhận thông báo" > "Cho phép" > Chờ popup xác nhận.</i></li>
           </ul>
         </div>
       `;
