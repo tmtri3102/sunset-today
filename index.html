@@ -369,6 +369,26 @@
           return "text-gray-500";
         }
 
+        function aerosolScore(pm25) {
+          const maxScore = 20;
+
+          // Score is highest (20) for pristine to ideal conditions (<= 30 µg/m³)
+          if (pm25 <= 30) {
+            return maxScore;
+          }
+
+          // Gradual decrease for moderate levels (30-60 µg/m³)
+          if (pm25 <= 60) {
+            // Score drops from 20 down to 10 as pm25 goes from 30 to 60
+            return maxScore - ((pm25 - 30) * 10) / 30;
+          }
+
+          // Sharp decrease for high levels (> 60 µg/m³)
+          // Score drops from 10 to 0 as pm25 goes from 60 to 100
+          const score = 10 - ((pm25 - 60) * 10) / 40;
+          return Math.max(0, score);
+        }
+
         function displaySunsetQuality(
           clouds,
           humidity,
@@ -377,7 +397,7 @@
           pm2_5
         ) {
           const cloudScore = calculateScore(clouds, 30, 70);
-          const aerosolScore = calculateScore(pm2_5, 25, 50);
+          const aerosolScoreValue = aerosolScore(pm2_5);
           const vis_km = vis_m / 1000;
           const visibilityScore = Math.min(20, (vis_km / 20) * 20);
           const humidityScore = calculateScore(humidity, 0, 40);
@@ -385,7 +405,7 @@
 
           const finalScore =
             cloudScore +
-            aerosolScore +
+            aerosolScoreValue +
             visibilityScore +
             humidityScore +
             pressureScore;
@@ -413,7 +433,7 @@
                 <div>
                     <div class="flex items-center gap-2"><span class="score-indicator"><svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg></span><h4 class="text-xs sm:text-sm sm:text-base font-semibold">Độ che phủ mây</h4></div>
                     <p class="text-lg my-2 font-bold text-gray-700">${clouds}%</p>
-                    <p class="text-xs sm:text-sm text-gray-500 italic">Lý tưởng: 40-60%</p>
+                    <p class="text-xs sm:text-sm text-gray-500 italic">Lý tưởng: 30-70%</p>
                 </div>
                 <p class="mt-2 text-sm font-bold ${getScoreColor(
                   cloudScore
@@ -425,11 +445,11 @@
                     <p class="text-lg my-2 font-bold text-gray-700">${pm2_5.toFixed(
                       1
                     )} µg/m³</p>
-                    <p class="text-xs sm:text-sm text-gray-500 italic">Lý tưởng: 12-35 µg/m³</p>
+                    <p class="text-xs sm:text-sm text-gray-500 italic">Lý tưởng: 15-30 µg/m³</p>
                 </div>
                 <p class="mt-2 text-sm font-bold ${getScoreColor(
-                  aerosolScore
-                )}">${aerosolScore.toFixed(1)}</p>
+                  aerosolScoreValue
+                )}">${aerosolScoreValue.toFixed(1)}</p>
             </div>
             <div class="factor-card flex flex-col justify-between">
                 <div>

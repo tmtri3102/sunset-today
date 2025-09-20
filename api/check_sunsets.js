@@ -21,15 +21,35 @@ function calculateSunsetQuality(clouds, pm25, visibility, humidity, pressure) {
     return Math.max(0, score);
   };
 
+  function aerosolScore(pm25) {
+    const maxScore = 20;
+
+    // Score is highest (20) for pristine to ideal conditions (<= 30 µg/m³)
+    if (pm25 <= 30) {
+      return maxScore;
+    }
+
+    // Gradual decrease for moderate levels (30-60 µg/m³)
+    if (pm25 <= 60) {
+      // Score drops from 20 down to 10 as pm25 goes from 30 to 60
+      return maxScore - ((pm25 - 30) * 10) / 30;
+    }
+
+    // Sharp decrease for high levels (> 60 µg/m³)
+    // Score drops from 10 to 0 as pm25 goes from 60 to 100
+    const score = 10 - ((pm25 - 60) * 10) / 40;
+    return Math.max(0, score);
+  }
+
   const cloudScore = calculateScore(clouds, 40, 60);
   const humidityScore = calculateScore(humidity, 0, 40);
   const visibilityScore = Math.min(20, (visibility / 1000 / 20) * 20);
   const pressureScore = calculateScore(pressure, 1020, 1040);
-  const aerosolScore = calculateScore(pm25, 12, 35);
+  const aerosolScoreValue = aerosolScore(pm25);
 
   // FIX #2: Bỏ Math.round() để giữ lại số thập phân cho điểm tổng.
   return (
-    cloudScore + humidityScore + visibilityScore + pressureScore + aerosolScore
+    cloudScore + humidityScore + visibilityScore + pressureScore + aerosolScoreValue
   );
 }
 
