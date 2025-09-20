@@ -363,9 +363,9 @@
         }
 
         function getFinalScoreColor(finalScore) {
-          if (finalScore >= 95) return "text-emerald-600";
-          if (finalScore >= 85) return "text-green-700";
-          if (finalScore >= 70) return "text-blue-500";
+          if (finalScore >= 95) return "text-green-700";
+          if (finalScore >= 85) return "text-emerald-600";
+          if (finalScore >= 70) return "text-teal-500";
           return "text-gray-500";
         }
 
@@ -489,9 +489,9 @@
               <li>Tổng điểm: 100, dựa trên 5 yếu tố thời tiết.</li>
               <li>Màu tổng điểm từ cao-thấp: 
                 <i>
-                  <span class="text-emerald-600">lá đậm</span> (>= 95), 
-                  <span class="text-green-700">lá</span> (>=85), 
-                  <span class="text-blue-500">xanh</span> (>=70), 
+                  <span class="text-green-700">lá đậm</span> (>= 95), 
+                  <span class="text-emerald-600 ">lá</span> (>=85), 
+                  <span class="text-teal-500">xanh</span> (>=70), 
                   <span class="text-gray-500">xám</span> (<70).
                 </i>
               </li>
@@ -509,7 +509,7 @@
         </div>
       `;
 
-          errorDisplay.className = "mt-6";
+          errorDisplay.className = "mt-4";
           errorDisplay.innerHTML = `
            <button 
             id="subscribe-btn" 
@@ -564,7 +564,7 @@
 
         function resetUI() {
           errorDisplay.innerHTML = "";
-          errorDisplay.className = "font-medium mt-4 min-h-[1.2em]";
+          errorDisplay.className = "text-sm md:text-md mt-4 min-h-[1.2em]";
           locationDisplay.textContent = "";
           countdownContainer.style.display = "none";
           qualityContainer.style.display = "none";
