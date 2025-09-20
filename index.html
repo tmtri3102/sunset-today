@@ -376,8 +376,8 @@
           pressure,
           pm2_5
         ) {
-          const cloudScore = calculateScore(clouds, 40, 60);
-          const aerosolScore = calculateScore(pm2_5, 12, 35);
+          const cloudScore = calculateScore(clouds, 30, 70);
+          const aerosolScore = calculateScore(pm2_5, 25, 50);
           const vis_km = vis_m / 1000;
           const visibilityScore = Math.min(20, (vis_km / 20) * 20);
           const humidityScore = calculateScore(humidity, 0, 40);
