@@ -112,7 +112,7 @@ export default async function handler(request, response) {
           `Checked subscriber for ${location.city}. Score: ${score.toFixed(1)}`
         );
 
-        if (score >= 80) {
+        if (score >= 85) {
           const offsetSeconds = weatherData.utc_offset_seconds;
           const offsetHours = Math.floor(offsetSeconds / 3600);
           const offsetSign = offsetHours >= 0 ? "+" : "-";
@@ -129,7 +129,7 @@ export default async function handler(request, response) {
           if (minutesToSunset > 0 && minutesToSunset <= 15) {
             const payload = JSON.stringify({
               title: `${score.toFixed(1)}/100 tại ${location.city}`,
-              body: `Hoàng hôn trong vòng 15 phút nữa!`,
+              body: `Hoàng hôn có thể trong vòng 15p nữa!`,
             });
 
             try {
